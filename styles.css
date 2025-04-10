@@ -1,0 +1,34 @@
+
+.flashcard-header {
+  display: flex;
+  justify-content: center;
+}
+
+.flashcard {
+  margin-top: 5%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  justify-self: center;
+  font-size: 50px;
+  background-color: var(--background-secondary);
+  border-radius: 1rem;
+  width: 65%;
+  height: 65%;
+}
+
+.flashcard p {
+  padding: 0, 2rem, 1rem, 2rem;
+  text-align: center;
+  text-wrap: pretty;
+}
+
+.flashcard-navigation {
+  padding: 2rem 4rem 2rem 4rem;
+  display: flex;
+  justify-content: space-evenly;
+}
+
+.flashcard-navigation span { 
+  --icon-size: var(--icon-xl);
+}
