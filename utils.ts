@@ -13,19 +13,17 @@ export function extractCallouts(content: string): CalloutFlashcard[] {
   let inCallout = false;
 
   for (const line of lines) {
-    if (line.startsWith("> [!flashcard]-")) {
+    if (line.startsWith("> [!card]-")) {
       if (inCallout) {
         callouts.push({
           question: question,
           answer: answer.trim()
         });
       }
-      question = line.replace("> [!flashcard]-", "") + "\n";
+      question = line.replace("> [!card]-", "") + "\n";
       inCallout = true;
-      console.log("1");
     } else if (inCallout && line.startsWith("> ")) {
       answer += line.replace("> ", "") + "\n";
-      console.log("please");
     } else {
       if (inCallout) {
         callouts.push({
@@ -33,7 +31,6 @@ export function extractCallouts(content: string): CalloutFlashcard[] {
           answer: answer.trim()
         });
       }
-      console.log("2");
       inCallout = false;
       answer = "";
       question = "";

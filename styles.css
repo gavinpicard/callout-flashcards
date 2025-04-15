@@ -4,31 +4,149 @@
   justify-content: center;
 }
 
-.flashcard {
-  margin-top: 5%;
+.flashcard-container {
+  width: 70%;
+  aspect-ratio: 5 / 3;
+  margin-top: 2rem;
   display: flex;
+  justify-self: center;
   justify-content: center;
   align-items: center;
-  justify-self: center;
-  font-size: 50px;
-  background-color: var(--background-secondary);
-  border-radius: 1rem;
-  width: 65%;
-  height: 65%;
+  position: relative;
 }
 
-.flashcard p {
-  padding: 0, 2rem, 1rem, 2rem;
+.flashcard {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  justify-self: center;
+  flex-direction: column;
+  background-color: var(--background-secondary);
+  border-radius: 1rem;
+  perspective: 1000px; /* Create depth for 3D effect */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  border: var(--tab-outline-width) solid var(--tab-outline-color);
+  transform-style: preserve-3d;
+  transition: transform 0.3s ease-in-out;
+  z-index: 2;
+}
+
+.flashcard-face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+
+.flashcard-back {
+  transform: rotateX(180deg);
+}
+
+.flashcard.flippedX {
+  transform: rotateX(180deg);
+}
+
+.flashcard.flippedY {
+  transform: rotateZ(5deg);
+}
+
+.flashcard.negFlippedY {
+  transform: rotateZ(-5deg);
+}
+
+.slide-out-right {
+  animation: slideOutRight 0.3s forwards;
+}
+
+.slide-in-left {
+  animation: slideInLeft 0.3s forwards;
+}
+
+.slide-out-left {
+  animation: slideOutLeft 0.3s forwards;
+}
+
+.slide-in-right {
+  animation: slideInRight 0.3s forwards;
+}
+
+@keyframes slideOutRight {
+from { transform: translateX(0); }
+to { transform: translateX(200%); }
+}
+
+@keyframes slideInLeft {
+from { transform: translateX(-200%); }
+to { transform: translateX(0); }
+}
+
+@keyframes slideOutLeft {
+from { transform: translateX(0); }
+to { transform: translateX(-200%); }
+}
+
+@keyframes slideInRight {
+from { transform: translateX(200%); }
+to { transform: translateX(0); }
+}
+
+
+
+.flashcard-top {
+  position: absolute;
+  opacity: 0.4;
+  top: 0;
+  left: 1rem;
+}
+
+.flashcard-title {
+  font-size: 1rem; /* Small title */
+  font-weight: bold;
+}
+
+
+.flashcard-content {
+  padding: 0 2rem 1rem 2rem;
+  font-size: 2rem;
   text-align: center;
   text-wrap: pretty;
 }
 
+.flashcard-progress-bar-container {
+  width: 60%;
+  border-radius: 0.15rem;
+  height: 0.3rem;
+  justify-self: center;
+  background-color: var(--background-secondary); /* Adjust to match your theme */
+
+}
+
+.flashcard-progress-bar {
+  margin-top: 4rem;
+  height: 100%;
+  background-color: var(--code-normal); /* Adjust to match your theme */
+  border-radius: 0.15rem;
+  transition: width 0.2s ease-in-out;
+}
+
 .flashcard-navigation {
-  padding: 2rem 4rem 2rem 4rem;
+  padding: 1rem 0 2rem 0;
   display: flex;
-  justify-content: space-evenly;
+  width: 60%;
+  justify-self: center;
+  justify-content: space-between;
 }
 
 .flashcard-navigation span { 
   --icon-size: var(--icon-xl);
+}
+
+.callout[data-callout="card"] {
+    --callout-color: var(--callout-success);
+    --callout-icon: lucide-gallery-vertical-end;
 }
