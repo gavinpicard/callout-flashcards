@@ -1,4 +1,5 @@
 import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, addIcon } from 'obsidian';
+import { EditorView, ViewUpdate } from "@codemirror/view";
 import { FlashcardView } from "./view";
 import { extractCallouts } from "./utils";
 
@@ -7,13 +8,17 @@ export const VIEW_TYPE_FLASHCARD = "flashcard-view";
 // Remember to rename these classes and interfaces!
 
 interface CalloutFlashcardsSettings {
-  mySetting: string;
   customCssColor: string;
+  calloutKeyword: string;
+  snippetEnabled: boolean;
+  snippetText: string;
 }
 
 const DEFAULT_SETTINGS: CalloutFlashcardsSettings = {
-  mySetting: "card",
-  customCssColor: "#ff0000"
+  customCssColor: "#ff0000",
+  calloutKeyword: "card",
+  snippetEnabled: true,
+  snippetText: "!c"
 }
 
 export default class CalloutFlashcards extends Plugin {
@@ -21,8 +26,36 @@ export default class CalloutFlashcards extends Plugin {
 
   async onload() {
     await this.loadSettings();
-    this.applyCustomStyles();
 
+    this.registerDomEvent(document, "keydown", (evt: KeyboardEvent) => {
+      if (evt.key !== " " || evt.shiftKey) return;
+
+      const mdView = this.app.workspace.getActiveViewOfType(MarkdownView);
+      if (!mdView) return;
+
+      const editor = mdView.editor;
+      const cursor = editor.getCursor();
+      const line = editor.getLine(cursor.line);
+      const beforeCursor = line.substring(0, cursor.ch);
+
+      // If the last 2 characters are "!c", replace them
+      if (beforeCursor.endsWith("!c")) {
+        const newLine =
+          beforeCursor.slice(0, -2) +
+            "> [!card]- " +
+            line.substring(cursor.ch);
+        editor.setLine(cursor.line, newLine);
+
+        // Move cursor to correct new position (after the inserted snippet)
+        const newCh = beforeCursor.length - 2 + "> [!card]- ".length;
+        editor.setCursor({ line: cursor.line, ch: newCh });
+
+        // Prevent space from also being typed
+        evt.preventDefault();
+      }
+    });
+
+    this.applyCustomStyles();
 
     const ribbonIconEl = this.addRibbonIcon('gallery-vertical-end', 'Callout Flashcards', (evt: MouseEvent) => {
       // Called when the user clicks the icon.
@@ -102,7 +135,7 @@ export default class CalloutFlashcards extends Plugin {
 
     if (activeLeaf?.getViewState().type == "flashcard-view") {
       const currView = activeLeaf.view as FlashcardView;
-      await activeLeaf.openFile(currView.getSource());
+      await activeLeaf.openFile(currView.getFile());
       return;
     }
 
@@ -117,14 +150,13 @@ export default class CalloutFlashcards extends Plugin {
 
     await leaf.setViewState({
       type: "flashcard-view",
-      active: true
-    })
+      active: true,
+      state: {
+        flashcards,
+        filePath: file.path,
+      },
+    });
 
-    const view = leaf.view;
-    if (view instanceof FlashcardView) {
-      view.setFlashcards(flashcards);
-      view.setSource(file);
-    }
 
     workspace.revealLeaf(leaf);
   }
@@ -147,24 +179,6 @@ export default class CalloutFlashcards extends Plugin {
   }
 }
 
-/*
-class SampleModal extends Modal {
-  constructor(app: App) {
-    super(app);
-  }
-
-  onOpen() {
-    const {contentEl} = this;
-    contentEl.setText('Woah!');
-  }
-
-  onClose() {
-    const {contentEl} = this;
-    contentEl.empty();
-  }
-}
-*/
-
 function hexToRgbString(hex: string): string {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -186,17 +200,6 @@ class CalloutFlashcardsSettingTab extends PluginSettingTab {
     containerEl.empty();
 
     new Setting(containerEl)
-      .setName("Callout Keyword")
-      .setDesc("Set the name of flashcard callouts, as in what goes inside -> [!card]")
-      .addText(text => 
-        text.setPlaceholder("card")
-          .setValue(this.plugin.settings.mySetting)
-          .onChange(async (value) => {
-            this.plugin.settings.mySetting = value;
-            await this.plugin.saveSettings();
-          }));
-
-    new Setting(containerEl)
       .setName("Callout Color")
       .setDesc("Set the CSS color for the flashcard callouts")
       .addText(text => {
@@ -207,6 +210,39 @@ class CalloutFlashcardsSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           });
       });
+
+    new Setting(containerEl)
+      .setName("Enable Text Replace Snippet")
+      .addToggle(value => {
+          value.setValue(this.plugin.settings.snippetEnabled)
+          .onChange(async (value) => {
+            this.plugin.settings.snippetEnabled = value;
+            await this.plugin.saveSettings();
+          });
+      });
+
+    new Setting(containerEl)
+      .setName("Text Replace Snippet")
+      .setDesc("By default, '!c' will turn into '> [!card]- '")
+      .addText(text => {
+        text.setPlaceholder("!c")
+          .setValue(this.plugin.settings.snippetText)
+          .onChange(async (value) => {
+            this.plugin.settings.snippetText = value;
+            await this.plugin.saveSettings();
+          });
+      });
+
+    new Setting(containerEl)
+      .setName("Callout Keyword")
+      .setDesc("Set the name of flashcard callouts, as in what goes inside -> [!card]")
+      .addText(text => 
+        text.setPlaceholder("card")
+          .setValue(this.plugin.settings.calloutKeyword)
+          .onChange(async (value) => {
+            this.plugin.settings.calloutKeyword = value;
+            await this.plugin.saveSettings();
+          }));
   }
 }
 

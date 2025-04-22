@@ -1,9 +1,14 @@
-import { ItemView, WorkspaceLeaf, setIcon, TFile } from "obsidian";
+import { ItemView, WorkspaceLeaf, setIcon, TFile, MarkdownRenderer } from "obsidian";
 import { CalloutFlashcard, extractCallouts } from "./utils";
+
+interface FlashcardViewState extends Record<string, unknown> {
+  flashcards: CalloutFlashcard[];
+  filePath:   string;
+}
 
 export class FlashcardView extends ItemView {
   private flashcards: CalloutFlashcard[] = [];
-  private source: TFile;
+  private filePath: string;
   private index: number = 0;
 
   constructor(leaf: WorkspaceLeaf) {
@@ -22,32 +27,44 @@ export class FlashcardView extends ItemView {
     return "gallery-vertical-end";
   }
 
-  getSource() {
-    return this.source;
-  }
-
-  async returnToFileView() {
-    if (this.source) {
-      await this.leaf.openFile(this.source);
+  override async setState(
+    state: FlashcardViewState,
+    result: any
+  ) {
+    // stash your data
+    this.flashcards = state.flashcards  || [];
+    if (state.filePath) {
+      this.filePath = state.filePath;
     }
-  }
-
-  setFlashcards(flashcards: CalloutFlashcard[]) {
-    this.flashcards = flashcards;
-    this.setCard();
-    this.updateProgressBar();
-    this.updateButtons();
+    // re‑render with your new data
+    await this.render();
     this.addAction('undo-2', 'Return to File', (evt: MouseEvent) => {
       this.returnToFileView();
     });
+    return super.setState(state, result);
   }
 
-  setSource(source: TFile) {
-    this.source = source;
+/*
+  override getState(): FlashcardViewState {
+    return {
+      flashcards: this.flashcards,
+      filePath:   this.source.path,
+    };
+  }*/
+  getFile(): TFile | null {
+    const f = this.app.vault.getAbstractFileByPath(this.filePath);
+    return f instanceof TFile ? f : null;
   }
 
-  private render() {
-    this.setCard();
+  async returnToFileView() {
+    const file = this.getFile();
+    if (file) {
+      await this.leaf.openFile(file);
+    }
+  }
+
+  private async render() {
+    await this.setCard();
     this.updateProgressBar();
     this.updateButtons();
   }
@@ -79,17 +96,37 @@ export class FlashcardView extends ItemView {
     }
   }
 
-  private setCard() {
+  private async setCard() {
     const container = this.containerEl.children[1];
-    const cardFront = container.querySelector(".flashcard-front"); // Directly query the card div
-    const cardBack = container.querySelector(".flashcard-back");
-    if (cardFront && cardBack && this.flashcards.length > 0) {
-      const fc = this.flashcards[this.index];
-      const frontCardContent = cardFront.querySelector(".flashcard-content");
-      const backCardContent = cardBack.querySelector(".flashcard-content");
-      frontCardContent?.setText(fc.question);
-      backCardContent?.setText(fc.answer);
-    }
+    const cardFront = container.querySelector(".flashcard-front");
+    const cardBack  = container.querySelector(".flashcard-back");
+    if (!cardFront || !cardBack || this.flashcards.length === 0) return;
+
+    const fc       = this.flashcards[this.index];
+    const frontEl  = cardFront.querySelector(".flashcard-content") as HTMLElement;
+    const backEl   = cardBack .querySelector(".flashcard-content") as HTMLElement;
+
+    // clear out any old HTML
+    frontEl.empty();
+    backEl.empty();
+
+    // render question (if you want Markdown there, too)
+    await MarkdownRenderer.render(
+      this.app,
+      fc.question,
+      frontEl,
+      this.filePath,
+      this
+    );
+
+    // render answer as full Markdown
+    await MarkdownRenderer.render(
+      this.app,
+      fc.answer,
+      backEl,
+      this.filePath,
+      this
+    );
   }
 
   async onOpen() {
@@ -106,12 +143,12 @@ export class FlashcardView extends ItemView {
     const cardBackTop = cardBack.createDiv({ cls: "flashcard-top" });
     const cardFrontTitle = cardFrontTop.createEl("p", { cls: "flashcard-title", text: "Question" });
     const cardBackTitle = cardBackTop.createEl("p", { cls: "flashcard-title", text: "Answer" });
-    const cardFrontContent = cardFront.createEl("p", { cls: "flashcard-content" });
-    const cardBackContent = cardBack.createEl("p", { cls: "flashcard-content" });
+    const cardFrontContent = cardFront.createDiv({ cls: "flashcard-content" });
+    const cardBackContent  = cardBack .createDiv({ cls: "flashcard-content" });
 
 
-    card.addEventListener("click", () => {
-      this.setCard(); // Update the card based on the flipped state
+    card.addEventListener("click", async () => {
+      await this.setCard(); // Update the card based on the flipped state
       card.classList.toggle("flippedX"); // Add "flipped" class to trigger animation
     });
 
@@ -133,11 +170,11 @@ export class FlashcardView extends ItemView {
     previousButton.setAttribute("aria-disabled", "true");
     if (this.flashcards.length == 1) nextButton.setAttribute("aria-disabled", "true");
 
-    progressBarContainer.addEventListener("click", (e: MouseEvent) => {
+    progressBarContainer.addEventListener("click", async (e: MouseEvent) => {
       const clickX = e.offsetX; // Get the click position
       const progress = (clickX / progressBarContainer.clientWidth); // Calculate the progress (0 to 1)
       this.index = Math.floor(progress * this.flashcards.length); // Set index based on click
-      this.render();
+      await this.render();
     });
 
     previousButton.addEventListener("click", () => {
